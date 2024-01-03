@@ -1,0 +1,66 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel} 
+\usepackage{amsmath} 
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{misccorr}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{DB internals. Вводная лекция}
+\author{Надуткин Федор }
+\date{December 2023}
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+\section*{Что будет в курсе:}
+
+\begin{enumerate}
+    \item \textbf{Composable Databases}.
+    Разделение баз данных на куски, которые разрабатываются отдельно.
+    
+    \includegraphics*[width=0.7\textwidth]{Pictures/Разделение баз данных}
+
+    \item \textbf{Виды СУБД}.
+    OLTP (Транзакционная модель, много маленьких операций) и
+    OLAP (Аналитическая модель, несколько больших операций).
+
+    \item Оптимизация запросов.
+    \begin{enumerate}
+        \item Реляционное представление.
+        \item Rule-based оптимизация запросов.
+        \item Cost-based оптимизация: планирование Join, алгоритм Cascades.
+        \item Особенности планирования в аналитических системах.
+        \item Особенности планирование в распределённых системах.
+    \end{enumerate}
+
+    \item Выполнение запросов
+    \begin{enumerate}
+        \item Модели выполнения: pull mode, push model.
+        \item Реализация операторов.
+        \item Массивно-параллельное выполнение запросов.
+        \item Координация выполнения запросов в распределённых системах.
+        \item Интерпретируемое и компилируемое выполнение запросов.
+        \item Колоночные движки и форматы.
+        \item Ключевые оптимизации в OLAP.
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+
+\section*{Чего не будет}
+
+\begin{enumerate}
+    \item Транзакционная обработка(MVCC, блокироки, изоляции).
+    \item Распределённые транзакции и консенсус.
+    \item Отказоустойчивость.
+    \item Нестандартные окружения (GPU, облака)
+\end{enumerate}
+
+\end{document}
