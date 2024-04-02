@@ -79,6 +79,7 @@
     \maketitle
     \newpage
 
+
     \section{Pull based execution}
 
     Представляем каждый оператор в виде итератора по строчкам.
@@ -145,6 +146,139 @@
         \item \texttt{boolean isFinished()} --- приостановление оператора.
         \item \texttt{boolean isBlocked()} --- работа с сетью/диском/параллельно.
     \end{itemize}
+
+    Такая модель позволяет нам делать параллельное исполнение, главное не нарушать инварианты, которые были бы при последовательном исполнении.
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.8\textwidth]{Pictures/Push/Push parallelism}
+        \caption{Распараллеливание работы при push execution.}
+    \end{figure}
+
+    Некоторые операторы могут выдавать \texttt{output} сразу как был дан \texttt{input}.
+    Например \texttt{Scan} или \texttt{Filter}.
+    Другие же операторы могут корректно отработать только тогда, когда им дадут полностью весь \texttt{input}, например \texttt{Aggregate}.
+    Отсюда можно делить операторы на \textbf{streaming} и \textbf{blocking}.
+
+    \newpage
+
+    \subsection{Блокирующие операторы}
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.8\textwidth]{Pictures/Push/Operators/Blocking operators}
+        \caption{Пример работы блокирующего оператора}
+    \end{figure}
+
+    \begin{itemize}
+        \item \texttt{HashAggregate}
+        \item \texttt{Window}
+        \item \texttt{Sort}
+    \end{itemize}
+
+    \subsection{Потоковые операторы}
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.8\textwidth]{Pictures/Push/Operators/Streaming operator}
+        \caption{Пример работы потокового оператора}
+    \end{figure}
+
+    \begin{itemize}
+        \item \texttt{Scan}
+        \item \texttt{Filter}
+        \item \texttt{Union All}
+        \item \dots
+    \end{itemize}
+
+    \subsection{HashJoin}
+
+    Отдельная история с \texttt{HashJoin}, ведь после того, как хеш таблица для одного ребёнка построена, можно делать исполнение параллельным.
+    Появляется идея разбиения исполнения на 2 части блокирующую и потоковую.
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.6\textwidth]{Pictures/Push/Operators/HashJoin}
+        \caption{Разбиваем HashJoin на 2 части: построение таблицу и сам Join}
+    \end{figure}
+
+    \subsection{Pipelining}
+
+    Логично разбить последовательности на куски (pipeline), заканчивающиеся блокирующими операторами.
+    Между ними могут существовать зависимости, а значит, что порядок на них важен.
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.4\textwidth]{Pictures/Push/Operators/Pipelining}
+        \caption{Пример разбиения работы на pipe}
+    \end{figure}
+
+    \newpage
+
+
+    \section{Parallelism}
+
+    Разделяют 2 способа распараллеливания исполнения.
+
+    \begin{figure}[h!]
+        \begin{minipage}{0.5\textwidth}
+            \centering
+            \includegraphics[width=0.6\textwidth]{Pictures/Push/Parallelism/Data Parallelism}
+            \caption{Параллелизм данных - расскидывание данных на разные pipeline}
+        \end{minipage}
+        \begin{minipage}{0.5\textwidth}
+            \centering
+            \includegraphics[width=0.6\textwidth]{Pictures/Push/Parallelism/Operator Parallelism}
+            \caption{Параллелизм операторов - Закидывание данных на один оператор, а тот в свою очередь расскидывает по потокам}
+        \end{minipage}
+    \end{figure}
+
+    \subsection{Параллелизм операторов}
+
+    \textbf{Что нужно:}
+    \begin{itemize}
+        \item Чтобы у каждого оператора был доступ к пулу потоков.
+        \item Чтобы создание потока было гораздо дешевле, чем синхронная обработка потока (иначе параллелизм не имеет смысла).
+    \end{itemize}
+
+    \subsubsection{Сортировка}
+
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.7\textwidth]{Pictures/Push/Parallelism/Operators/Сортировка}
+        \caption{Пример распараллеливания сортировки}
+    \end{figure}
+    
+    \subsubsection{Хеш-аггрегат}
+    
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.7\textwidth]{Pictures/Push/Parallelism/Operators/Хеш аггрегат}
+        \caption{Пример распараллеливания хеш аггрегата. В конце таблицы надо смёржить}
+    \end{figure}
+
+    \subsection{Параллелизм данных}
+
+    Каждый поток читает независимый кусок данных и выполняет его в своём pipeline.
+    Такой подход может быть не всегда корректен, так как могут возникать конфликты, пример на картинке.
+    
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.7\textwidth]{Pictures/Push/Parallelism/Data/Conflict}
+        \caption{Конфликтная ситуация при параллелизме данных}
+    \end{figure}
+
+    В таком случае там нужно делать точки остановки в которых эти конфликты будут решаться.
+
+    Отдельной историей для рассмотрения параллелизма данных может быть распределённая система, когда данные разделены на разные шарды (или реплики).
+    Для подобных случаев стоит разбивать на куски, какие-то из них будут выполняться на одном шарде, а после этого будет сделан \texttt{Exchange}, который выстроит логику работу правильно.
+    
+    \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\textwidth]{Pictures/Push/Parallelism/Data/Exchange}
+        \caption{Пример Exchange оператора}
+    \end{figure}
+    
 
 
 \end{document}
